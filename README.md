@@ -125,3 +125,4 @@ Job status → completed
 ## Architecture Diagram
 
 See the draw.io diagram linked in the submission.
+https://app.diagrams.net/#G190VnAYEs3mrzH975JwNvCgwbw8snOeze#%7B%22pageId%22%3A%22architecture%22%7D
