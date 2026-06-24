@@ -1,0 +1,100 @@
+version: "3.9"
+
+networks:
+  pipeline_net:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - pipeline_net
+    environment:
+      POSTGRES_USER: txnuser
+      POSTGRES_PASSWORD: txnpass
+      POSTGRES_DB: txndb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U txnuser -d txndb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - pipeline_net
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    networks:
+      - pipeline_net
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 10 && ollama pull llama3.2:3b && wait"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
+
+  api:
+    build: .
+    restart: unless-stopped
+    networks:
+      - pipeline_net
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://txnuser:txnpass@postgres:5432/txndb
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_URL: http://ollama:11434/api/chat
+      OLLAMA_MODEL: llama3.2:3b
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    networks:
+      - pipeline_net
+    command: celery -A app.celery_worker.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql://txnuser:txnpass@postgres:5432/txndb
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_URL: http://ollama:11434/api/chat
+      OLLAMA_MODEL: llama3.2:3b
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  ollama_data:
+  uploads_data:

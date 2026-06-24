@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Transaction Pipeline</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #0f172a; color: #e2e8f0; }
+    h1 { color: #38bdf8; }
+    .card { background: #1e293b; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    input[type=file] { color: #e2e8f0; }
+    button { background: #0ea5e9; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+    button:hover { background: #0284c7; }
+    pre { background: #0f172a; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+    label { display: block; margin-bottom: 8px; color: #94a3b8; }
+    .status { font-weight: bold; color: #34d399; }
+  </style>
+</head>
+<body>
+  <h1>🔁 Transaction Processing Pipeline</h1>
+
+  <div class="card">
+    <h2>Upload CSV</h2>
+    <label>Select a transactions CSV file:</label>
+    <input type="file" id="csvFile" accept=".csv">
+    <br><br>
+    <button onclick="uploadFile()">Upload &amp; Process</button>
+    <pre id="uploadResult"></pre>
+  </div>
+
+  <div class="card">
+    <h2>Poll Job Status</h2>
+    <label>Job ID:</label>
+    <input type="number" id="jobId" style="padding:8px;border-radius:4px;border:1px solid #334155;background:#0f172a;color:#e2e8f0">
+    <button onclick="checkStatus()">Check Status</button>
+    <pre id="statusResult"></pre>
+  </div>
+
+  <div class="card">
+    <h2>Get Full Results</h2>
+    <button onclick="getResults()">Fetch Results (uses Job ID above)</button>
+    <pre id="resultsOutput"></pre>
+  </div>
+
+  <script>
+    async function uploadFile() {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return alert('Select a file first');
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch('/jobs/upload', { method: 'POST', body: fd });
+      const data = await r.json();
+      document.getElementById('uploadResult').textContent = JSON.stringify(data, null, 2);
+      if (data.job_id) document.getElementById('jobId').value = data.job_id;
+    }
+
+    async function checkStatus() {
+      const id = document.getElementById('jobId').value;
+      if (!id) return alert('Enter a job ID');
+      const r = await fetch(`/jobs/${id}/status`);
+      const data = await r.json();
+      document.getElementById('statusResult').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function getResults() {
+      const id = document.getElementById('jobId').value;
+      if (!id) return alert('Enter a job ID');
+      const r = await fetch(`/jobs/${id}/results`);
+      const data = await r.json();
+      document.getElementById('resultsOutput').textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>
