@@ -19,7 +19,7 @@ A FastAPI + Celery + PostgreSQL + Redis + Ollama backend that accepts a dirty CS
 ## Quick Start
 
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd transaction-pipeline
 docker compose up --build
 ```
